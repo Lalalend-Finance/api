@@ -1,0 +1,23 @@
+{
+  "unitrollerAddress": "",
+  "comptrollerAbi": "",
+  "unitrollerContract": "",
+  "sebUnitrollerAddress": "",
+  "sebControllerAbi": "",
+  "sebUnitrollerContract": "",
+  "sebVaultProxyAddress": "",
+  "sebVaultAbi": "",
+  "sebVaultProxyContract": "",
+  "ntokenAbi":"",
+  "erc20Abi": "",
+  "ntokens_array": [],
+  "nemoLensAddress": "",
+  "nemoLensAbi": "",
+  "nemoLensContract": "",
+  "governorAddress":"",
+  "governorAbi": "",
+  "governorContract": "",
+  "miaAddress": "",
+  "miaAbi": "",
+  "miaContract": "0x8333AfA22De158606E74E9904f281D73e0023ED9"
+}
