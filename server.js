@@ -1,64 +1,77 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const Web3 = require('web3');
+const addresses = require('./addresses.json');
+require('dotenv').config()
+
 const config = require('./config.json');
+// ABIS
+const comptrollerAbi = require('./abis/comptroller_abi.json');
+
+const sebControllerAbi = require('./abis/seb_controller_abi.json');
+
+const sebVaultAbi = require('./abis/seb_vault_abi.json');
+
+const ntokenAbi = require('./abis/ntoken_abi.json');
+
+const erc20Abi = require('./abis/erc20_abi.json');
+
+const miaLensAbi = require('./abis/mia_lens_abi.json');
+
+const governorAbi = require('./abis/governor_abi.json');
+
+const miaAbi = require('./abis/mia_abi.json');
+
+const oracleAbi = require('./abis/oracle_abi.json');
 
 const walletPrivateKey = process.env.walletPrivateKey;
-const web3 = new Web3('https://mainnet.infura.io/v3/_your_api_key_here_');
+const web3 = new Web3('https://eth.bd.evmos.dev:8545');
 
-web3.eth.accounts.wallet.add(walletPrivateKey);
-const myWalletAddress = web3.eth.accounts.wallet[0].address;
+const myAcc = web3.eth.accounts.wallet.add(walletPrivateKey);
+//const myWalletAddress = web3.eth.accounts.wallet[0].address;
 
 // Unitroller which delegates calls to Comptroller
-const unitrollerAddress = config.unitrollerAddress;
-const comptrollerAbi = config.comptrollerAbi;
+const unitrollerAddress = addresses.unitrollerAddress;
 const unitrollerContract = new web3.eth.Contract(comptrollerAbi, unitrollerAddress);
 
 // SEBUnitroller which delegates calls to SEBController
-const sebUnitrollerAddress = config.sebUnitrollerAddress;
-const sebControllerAbi = config.sebControllerAbi;
+const sebUnitrollerAddress = addresses.sebUnitrollerAddress;
 const sebUnitrollerContract = new web3.eth.Contract(sebControllerAbi, sebUnitrollerAddress);
 
 // SEBVaultProxy which delegates calls to SEBVault
-const sebVaultProxyAddress = config.sebVaultProxyAddress;
-const sebVaultAbi = config.sebVaultAbi;
+const sebVaultProxyAddress = addresses.sebVaultProxyAddress;
 const sebVaultProxyContract = new web3.eth.Contract(sebVaultAbi, sebVaultProxyAddress);
 
-// NToken which implements NErc20
-//const ntokenAddress = config.ntokenAddress;
-const ntokenAbi = config.ntokenAbi;
-const erc20Abi = config.erc20Abi;
-
-
-//array that contains all notokens address whitelisted on lalalend
+//array that contains all ntokens address whitelisted on lalalend
 const ntokens_array = config.ntokens_array;
 
-//NemoLens 
-const nemoLensAddress = config.nemoLensAddress;
-const nemoLensAbi = config.nemosLensAbi;
-const nemoLensContract = new web3.eth.Contract(nemoLensAbi, nemoLensAddress);
+//MiaLens 
+const miaLensAddress = addresses.miaLensAddress;
+const miaLensContract = new web3.eth.Contract(miaLensAbi, miaLensAddress);
 
 //GovernorBravoDelegator which delegates calls to GovernorBravoDelegate
-const governorAddress = config.governorAddress;
-const governorAbi = config.governorAbi;
+const governorAddress = addresses.governorAddress;
 const governorContract = new web3.eth.Contract(governorAbi, governorAddress);
 
-
 // MIA address
-const miaAddress = config.miaAddress;
-const miaAbi = config.miaAbi;
+const miaAddress = addresses.miaAddress;
 const miaContract = new web3.eth.Contract(miaAbi, miaAddress);
+
+// ORACLE
+const oracleAddress = addresses.oracleAddress;
+const oracleContract = new web3.eth.Contract(oracleAbi, oracleAddress);
 
 function getNTokenContract(address) {
   return new web3.eth.Contract(ntokenAbi, address);
 }
 
 function getErc20Contract(address) {
+  if (address === "0x0000000000000000000000000000000000000000") return;
   return new web3.eth.Contract(erc20Abi, address);
 }
 
 const app = express();
-const port = 3000;
+const port = 8080;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -68,17 +81,19 @@ app.get('/', (req,res) => {
 })
 
 // todo
-app.get('/governance/mia', (req,res) => {
+app.get('/governance/mia', async (req,res) => {
   var miaRate;
   var dailyMia;
 
-  unitrollerContract.methods.miaRate().call()
+  await unitrollerContract.methods.miaRate().call()
     .then((result) => {
       miaRate = web3.utils.fromWei(result);
+      console.log("miaRate : " + miaRate);
     }).catch((error) => {
       console.error('mia rate error:', error);
       return res.sendStatus(400);
   });
+
 
   var markets = [];
   var marketsRes = [];
@@ -88,17 +103,21 @@ app.get('/governance/mia', (req,res) => {
   const blocksPerDay = 20 * 60 * 24;
   const daysPerYear = 365;
 
-  unitrollerContract.methods.getAllMarkets().call()
+  await unitrollerContract.methods.getAllMarkets().call()
     .then((result) => {
       markets = result;
+      console.log("markets : " + JSON.stringify(markets));
     }).catch((error) => {
       console.error('getAllMarkets error:', error);
       return res.sendStatus(400);
   });
 
-  nemoLensContract.methods.nTokenMetadataAll(markets).call()
+  await miaLensContract.methods.nTokenMetadataAll(markets).call()
     .then((result)=> {
       marketsRes = result
+      /*for (var i=0; i<marketsRes.length; i++) {
+        console.log("token " + i+ " : " + JSON.stringify(marketsRes[i]));
+      }*/
     }).catch((error) => {
       console.error('get nTokenMetadatAll error:', error);
       return res.sendStatus(400);
@@ -106,183 +125,221 @@ app.get('/governance/mia', (req,res) => {
 
 
 
-  marketsRes.map((item)=> {
-    var address = item.nToken;
-    var symbol;
-    var name;
-    var underlyingAddress = item.underlyingAssetAddress;
-    var underlyingName;
-    var underlyingSymbol;
-    var underlyingDecimal = item.underlyingDecimals; 
-    var miaSpeeds;
-    var borrowerDailyMia = item.dailyBorrowNemo; 
-    var supplierDailyMia = item.dailySupplyNemo;
+  for (item of marketsRes) {
+    if(item.nToken != "0x5fF141cd9fb7A3137d43f3116F99a78Ab46FE5e4") {
+      var address = item.nToken;
+      console.log("address is : " + address);
+      var symbol;
+      var name;
+      var underlyingAddress = item.underlyingAssetAddress;
+      console.log("underlyingAddress is : " + underlyingAddress);
 
-    var miaBorrowIndex;
-    var miaSupplyIndex;
+      var underlyingName;
+      var underlyingSymbol;
+      var underlyingDecimal = item.underlyingDecimals; 
+      var miaSpeeds;
+      var borrowerDailyMia = item.dailyBorrowMia; 
+      var supplierDailyMia = item.dailySupplyMia;
 
-    var borrowRatePerBlock = item.borrowRatePerBlock; 
-    var supplyRatePerBlock = item.supplyRatePerBlock; 
-    var exchangeRate = item.exchangeRateCurrent;
+      var miaBorrowIndex;
+      var miaSupplyIndex;
 
-    var underlyingPrice;
+      var borrowRatePerBlock = item.borrowRatePerBlock; 
+      var supplyRatePerBlock = item.supplyRatePerBlock; 
+      var exchangeRate = item.exchangeRateCurrent;
 
-    var totalBorrows = item.totalBorrows; 
-    var totalBorrows2 = item.totalBorrows; 
-    var totalBorrowsUsd = item.totalBorrows;
-    var totalSupply = item.totalSupply; 
-    var totalSupply2 = item.totalSupply;
-    var totalSupplyUsd = item.totalSupply;
-    var cash = item.totalCash; 
-    var totalReserves = item.totalReserves; 
-    var reserveFactor = item.reserveFactorMantissa; 
-    var collateralFactor = item.collateralFactorMantissa; 
-    const borrowApy = (((Math.pow((borrowRatePerBlock / evmosMantissa * blocksPerDay) + 1, daysPerYear))) - 1) * 100;
-    const supplyApy = (((Math.pow((supplyRatePerBlock / evmosMantissa * blocksPerDay) + 1, daysPerYear))) - 1) * 100;
-    
-    var borrowMiaApy;
-    var supplyMiaApy;
-    var borrowMiaApr;
-    var supplyMiaApr;
+      var underlyingPrice;
 
-    var liquidity; 
-    var tokenPrice;
-    var totalDistributed;
-    var totalDistributed2;
+      var totalBorrows = item.totalBorrows; 
+      var totalBorrows2 = item.totalBorrows; 
+      var totalBorrowsUsd = item.totalBorrows;
+      var totalSupply = item.totalSupply; 
+      var totalSupply2 = item.totalSupply;
+      var totalSupplyUsd = item.totalSupply;
+      var cash = item.totalCash; 
+      var totalReserves = item.totalReserves; 
+      var reserveFactor = item.reserveFactorMantissa; 
+      var collateralFactor = item.collateralFactorMantissa; 
+      const borrowApy = (((Math.pow((borrowRatePerBlock / evmosMantissa * blocksPerDay) + 1, daysPerYear))) - 1) * 100;
+      const supplyApy = (((Math.pow((supplyRatePerBlock / evmosMantissa * blocksPerDay) + 1, daysPerYear))) - 1) * 100;
+      
+      var borrowMiaApy;
+      var supplyMiaApy;
+      var borrowMiaApr;
+      var supplyMiaApr;
 
-    var borrowCaps;
+      var liquidity; 
+      var tokenPrice;
+      var totalDistributed;
+      var totalDistributed2;
 
-    var lastCalculatedBlockNumber; 
-    var borrowerCount; 
-    var supplierCount;
+      var borrowCaps;
 
-    dailyMia += borrowerDailyMia + supplierDailyMia;
+      var lastCalculatedBlockNumber; 
+      var borrowerCount; 
+      var supplierCount;
 
-    unitrollerContract.methods.nemoSpeeds(address).call()
-      .then((result) => {
-        miaSpeeds = web3.utils.fromWei(result);
-      }).catch((error) => {
-        console.error('mia speed error:', error);
-        return res.sendStatus(400);
-    });
-    unitrollerContract.methods.borrowCaps(address).call()
-      .then((result) => {
-        borrowCaps = web3.utils.fromWei(result);
-      }).catch((error) => {
-        console.error('borrow caps error:', error);
-        return res.sendStatus(400);
-    });
+      dailyMia += borrowerDailyMia + supplierDailyMia;
 
-    var contractToken = getNTokenContract(address);
-    contractToken.methods.symbol().call()
-      .then((result) => {
-        symbol = result;
-      }).catch((error) => {
-        console.error('get symbol error:', error);
-        return res.sendStatus(400);
-    });
-    contractToken.methods.name().call()
-      .then((result) => {
-        name = result;
-      }).catch((error) => {
-        console.error('get name error:', error);
-        return res.sendStatus(400);
-    });
+      await unitrollerContract.methods.miaSpeeds(address).call()
+        .then((result) => {
+          miaSpeeds = web3.utils.fromWei(result);
+          console.log("miaSpeeds : " + miaSpeeds);
+        }).catch((error) => {
+          console.error('mia speed error:', error);
+          return res.sendStatus(400);
+      });
+      await unitrollerContract.methods.borrowCaps(address).call()
+        .then((result) => {
+          borrowCaps = web3.utils.fromWei(result);
+          console.log("borrow cap : " + borrowCaps);
+        }).catch((error) => {
+          console.error('borrow caps error: ', error);
+          return res.sendStatus(400);
+      });
 
-    var contractUnderlyingToken = getErc20Contract(underlyingAddress);
-    contractUnderlyingToken.methods.name().call()
-      .then((result) => {
-        underlyingName = result;
-      }).catch((error) => {
-        console.error('get name underlying error:', error);
-        return res.sendStatus(400);
-    });
-    contractUnderlyingToken.methods.symbol().call()
-      .then((result) => {
-        underlyingSymbol = result;
-      }).catch((error) => {
-        console.error('get symbol underlying error:', error);
-        return res.sendStatus(400);
-    });
+      var contractToken = getNTokenContract(address);
+      await contractToken.methods.symbol().call()
+        .then((result) => {
+          symbol = result;
+          console.log("symbol : " + symbol);
+        }).catch((error) => {
+          console.error('get symbol error:', error);
+          return res.sendStatus(400);
+      });
+      await contractToken.methods.name().call()
+        .then((result) => {
+          name = result;
+          console.log("name : " + name);
 
-    var MIA = config.miaContract;
-    var contractMIAUnderlyingToken = getNTokenContract(MIA);
-    contractMIAUnderlyingToken.methods.borrowIndex().call()
-      .then((result) => {
-        miaBorrowIndex = result;
-      }).catch((error) => {
-        console.error('get borrow index mia error:', error);
-        return res.sendStatus(400);
-    });
+        }).catch((error) => {
+          console.error('get name error:', error);
+          return res.sendStatus(400);
+      });
 
-    contractMIAUnderlyingToken.methods.supplyIndex().call()
-      .then((result) => {
-        miaSupplyIndex = result;
-      }).catch((error) => {
-        console.error('get supply index mia error:', error);
-        return res.sendStatus(400);
-    });
+      /*if(symbol != "MIA" && symbol != "SEB") {
+          switch (symbol) {
+            case "nEVMOS":
+              underlyingName = "WEVMOS"
+              underlyingSymbol = "WEVMOS"
+              break;
+            default:
+              break;
+          }
+      }else{
+        console.log('trying to access ... underlying : '+ underlyingAddress);
+        var contractUnderlyingToken = getErc20Contract(underlyingAddress);
+        await contractUnderlyingToken.methods.name().call()
+          .then((result) => {
+            underlyingName = result;
+            console.log("underlyingName : " + underlyingName);
+  
+          }).catch((error) => {
+            console.error('get name underlying error:', error);
+            return res.sendStatus(400);
+        });
+        await contractUnderlyingToken.methods.symbol().call()
+          .then((result) => {
+            underlyingSymbol = result;
+            console.log("underlyingSymbol : " + underlyingSymbol);
+  
+          }).catch((error) => {
+            console.error('get symbol underlying error:', error);
+            return res.sendStatus(400);
+        });
+      }
+      */
 
-    nemoLensContract.methods.nTokenUnderlyingPrice(address).call()
-      .then((result)=> {
-        underlyingPrice = result;
-      }).catch((error) => {
-        console.error('get ntokenUnderlying Price error:', error);
-        return res.sendStatus(400);
-    });
+      var MIA = addresses.miaAddress;
+      var contractMIAUnderlyingToken = getNTokenContract(MIA);
+      await contractMIAUnderlyingToken.methods.borrowIndex().call()
+        .then((result) => {
+          miaBorrowIndex = result;
+        }).catch((error) => {
+          console.error('get borrow index mia error:', error);
+          return res.sendStatus(400);
+      });
 
-    var miaPrice;
-    // TODO :  read the oracle to get miaPrice : miaAddress
+      /*await contractMIAUnderlyingToken.methods.supplyIndex().call()
+        .then((result) => {
+          miaSupplyIndex = result;
+        }).catch((error) => {
+          console.error('get supply index mia error:', error);
+          return res.sendStatus(400);
+      });
+      */
 
-    borrowMiaApy = 100 * (Math.pow((1 + (miaPrice * borrowerDailyMia / (totalBorrows * underlyingPrice))), 365) - 1);
-    supplyMiaApy = 100 * (Math.pow((1 + (miaPrice * supplierDailyMia / (totalSupply * exchangeRate * underlyingPrice))), 365) - 1);
-    borrowMiaApr = (Math.pow((1 + borrowMiaApy), 1/365) - 1) * 365;
-    supplyMiaApr = (Math.pow((1 + supplyMiaApy), 1/365) - 1) * 365;
+      await miaLensContract.methods.nTokenUnderlyingPrice(address).call()
+        .then((result)=> {
+          underlyingPrice = result;
+          console.log("underlyingPrice is : "+ underlyingPrice.underlyingPrice);
+        }).catch((error) => {
+          console.error('get ntokenUnderlying Price error:', error);
+          return res.sendStatus(400);
+      });
 
-    var solo_market = {
-      "address" : address,
-      "symbol" : symbol,
-      "name": name,
-      "underlyingAddress": underlyingAddress,
-      "underlyingName": underlyingName,
-      "underlyingSymbol": underlyingSymbol,
-      "underlyingDecimal": underlyingDecimal,
-      "miaSpeeds": miaSpeeds,
-      "borrowerDailyMia": borrowerDailyMia,
-      "supplierDailyMia": supplierDailyMia,
-      "miaBorrowIndex": miaBorrowIndex,
-      "miaSupplyIndex": miaSupplyIndex,
-      "borrowRatePerBlock": borrowRatePerBlock,
-      "supplyRatePerBlock": supplyRatePerBlock,
-      "exchangeRate": exchangeRate,
-      "underlyingPrice": underlyingPrice,
-      "totalBorrows": totalBorrows,
-      "totalBorrows2": totalBorrows2,
-      "totalBorrowsUsd": totalBorrowsUsd,
-      "totalSupply": totalSupply,
-      "totalSupply2": totalSupply2,
-      "totalSupplyUsd": totalSupplyUsd,
-      "cash": cash,
-      "totalReserves": totalReserves,
-      "reserveFactor": reserveFactor,
-      "collateralFactor": collateralFactor,
-      "borrowApy": borrowApy,
-      "supplyApy": supplyApy,
-      "borrowMiaApy": borrowMiaApy,
-      "supplyMiaApy": supplyMiaApy,
-      "borrowMiaApr": borrowMiaApr,
-      "supplyMiaApr": supplyMiaApr,
-      "liquidity":"",
-      "tokenPrice": tokenPrice,
-      "totalDistributed":"",
-      "totalDistributed2":"",
-      "borrowCaps": borrowCaps,
-      "lastCalculatedBlockNumber": "",
-      "borrowerCount": "",
-      "supplierCount":""
+      var miaPrice;
+      // TODO :  read the oracle to get miaPrice : miaAddress
+      await oracleContract.methods.getUnderlyingPrice(addresses.miaAddress).call()
+        .then((result)=> {
+            miaPrice = result;
+        }).catch((error)=> {
+          console.error('get ntokenUnderlying Price error:', error);
+          return res.sendStatus(400);
+      })
+      borrowMiaApy = 100 * (Math.pow((1 + (miaPrice * borrowerDailyMia / (totalBorrows * underlyingPrice))), 365) - 1);
+      supplyMiaApy = 100 * (Math.pow((1 + (miaPrice * supplierDailyMia / (totalSupply * exchangeRate * underlyingPrice))), 365) - 1);
+      borrowMiaApr = (Math.pow((1 + borrowMiaApy), 1/365) - 1) * 365;
+      supplyMiaApr = (Math.pow((1 + supplyMiaApy), 1/365) - 1) * 365;
+
+      var solo_market = {
+        "address" : address,
+        "symbol" : symbol,
+        "name": name,
+        "underlyingAddress": underlyingAddress,
+        "underlyingName": " ",//underlyingName,
+        "underlyingSymbol": " ",//underlyingSymbol,
+        "underlyingDecimal": underlyingDecimal,
+        "miaSpeeds": miaSpeeds,
+        "borrowerDailyMia": borrowerDailyMia,
+        "supplierDailyMia": supplierDailyMia,
+        "miaBorrowIndex": miaBorrowIndex,
+        "miaSupplyIndex": 0, //miaSupplyIndex,
+        "borrowRatePerBlock": borrowRatePerBlock,
+        "supplyRatePerBlock": supplyRatePerBlock,
+        "exchangeRate": exchangeRate,
+        "underlyingPrice": underlyingPrice,
+        "totalBorrows": totalBorrows,
+        "totalBorrows2": totalBorrows2,
+        "totalBorrowsUsd": totalBorrowsUsd,
+        "totalSupply": totalSupply,
+        "totalSupply2": totalSupply2,
+        "totalSupplyUsd": totalSupplyUsd,
+        "cash": cash,
+        "totalReserves": totalReserves,
+        "reserveFactor": reserveFactor,
+        "collateralFactor": collateralFactor,
+        "borrowApy": borrowApy,
+        "supplyApy": supplyApy,
+        "borrowMiaApy": borrowMiaApy,
+        "supplyMiaApy": supplyMiaApy,
+        "borrowMiaApr": borrowMiaApr,
+        "supplyMiaApr": supplyMiaApr,
+        "liquidity":"",
+        "tokenPrice": tokenPrice,
+        "totalDistributed":"",
+        "totalDistributed2":"",
+        "borrowCaps": borrowCaps,
+        "lastCalculatedBlockNumber": "",
+        "borrowerCount": "",
+        "supplierCount":""
+      }
+      finalArray.push(solo_market);
+      console.log("final Array after pushing is : "+ JSON.stringify(finalArray));
     }
-    finalArray.push(solo_market);
-  })
+  }
+
+  console.log("final array is : "+ finalArray);
 
   const resJson = {
     "data": {
@@ -952,7 +1009,7 @@ app.get('/proposals', (req,res) => {
     proposalsIdsWithParams.push(i);
   }
 
-  nemoLensContract.methods.getGovProposals(governorAddress,proposalsIdsWithParams).call()
+  miaLensContract.methods.getGovProposals(governorAddress,proposalsIdsWithParams).call()
     .then((result)=> {
       proposals = result
     }).catch((error) => {
@@ -1113,7 +1170,7 @@ app.get('/proposals', (req,res) => {
 // should be ok
 app.get('/proposals/:id', (req,res) => {
   var proposal = [];
-  nemoLensContract.methods.getGovProposals(governorAddress,[req.params.id]).call()
+  miaLensContract.methods.getGovProposals(governorAddress,[req.params.id]).call()
     .then((result)=> {
       proposal = result
     }).catch((error) => {
@@ -1331,13 +1388,13 @@ app.get('/voters/accounts/:id', (req,res) => {
   var balance;
   var votes;
   var delegate; 
-  nemoLensContract.methods.getNEMOBalanceMetadata(miaAddress, account).call()
+  miaLensContract.methods.getMIABalanceMetadata(miaAddress, account).call()
     .then((result)=> {
       balance = result.balance;
       votes = result.votes;
       delegate = result.delegate; 
     }).catch((error) => {
-      console.error('get getNEMOBalanceMetadata error:', error);
+      console.error('get getMIABalanceMetadata error:', error);
       return res.sendStatus(400);
   });
 
@@ -1462,7 +1519,7 @@ app.get('/voters/history/:id', (req,res) => {
 
       // GET PROPOSAL OBJECT FROM CONTRACT 
       var proposal = [];
-      nemoLensContract.methods.getGovProposals(governorAddress,[proposalId]).call()
+      miaLensContract.methods.getGovProposals(governorAddress,[proposalId]).call()
         .then((result)=> {
           proposal = result
         }).catch((error) => {
@@ -1628,7 +1685,7 @@ app.get('/market_history/graph', (req,res) => {
 
   const results = [];
   const total = 0;
-  // GET PAST EVENT FOR DISTRIBUTESUPPLIERNEMO AND DISTRIBUTEBORROWERNEMO FOR BLOCKS
+  // GET PAST EVENT FOR DISTRIBUTESUPPLIERMIA AND DISTRIBUTEBORROWERMIA FOR BLOCKS
   // WITH THE NTOKEN ADDRESS => GET NTOKENMETADATA
   const market_graph = {
     "asset":asset,

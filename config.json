@@ -1,23 +1,11 @@
 {
-  "unitrollerAddress": "",
-  "comptrollerAbi": "",
-  "unitrollerContract": "",
-  "sebUnitrollerAddress": "",
-  "sebControllerAbi": "",
-  "sebUnitrollerContract": "",
-  "sebVaultProxyAddress": "",
-  "sebVaultAbi": "",
-  "sebVaultProxyContract": "",
-  "ntokenAbi":"",
-  "erc20Abi": "",
-  "ntokens_array": [],
-  "nemoLensAddress": "",
-  "nemoLensAbi": "",
-  "nemoLensContract": "",
-  "governorAddress":"",
-  "governorAbi": "",
-  "governorContract": "",
-  "miaAddress": "",
-  "miaAbi": "",
-  "miaContract": "0x8333AfA22De158606E74E9904f281D73e0023ED9"
+    "ntokens_array": [
+        "0xb07F2da8296b42F6341393088adeacD10b493F77",
+        "0xea4E1AfE4865192eEccf46c60Ecc4cdAe1Db119F",
+        "0xCc46bBAA530eba84AD84F88558ADb691725E23e5",
+        "0x298FB14bCC10352F7B227d1565b7441671F9dCa5",
+        "0xeB1CE35B9Cff71316F612aA946B6a15015614D4F",
+        "0xfaa9Bb1E7602AB9A9aAea86cCcbB6B3ddeAbbc54",
+        "0xd9edE9aDe6090987fB3eBE4750877C66b32c002E"
+    ]
 }
