@@ -1,5 +1,7 @@
 const express = require('express');
 const bodyParser = require('body-parser');
+const path = require('path');
+
 const Web3 = require('web3');
 const addresses = require('./addresses.json');
 require('dotenv').config()
@@ -94,9 +96,10 @@ const port = 3001;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(__dirname + '/'));
 
 app.get('/', (req,res) => {
-  res.send('hello this is the LALALEND API');
+  res.sendFile(path.join(__dirname+'/main.html'));
 })
 
 app.get('/governance/mia', async (req,res) => {
