@@ -372,7 +372,6 @@ app.get('/governance/mia', async (req,res) => {
 
 })
 
-// should be ok
 app.get('/transactions', (req,res)=> {
   const page = req.query.page;
   const order = req.query.order;
@@ -387,15 +386,12 @@ app.get('/transactions', (req,res)=> {
   for (ad of ntokens_array) {
     const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
     console.log("address : "+ ad);
-    /*const mintEvents = ntokContract.getPastEvents('Mint', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    })
     const latest = await web3.eth.getBlock("latest");
-    //console.log("latest " + JSON.stringify(latest));
-    //const ntokContract = new web3.eth.Contract(ntokenAbi, );
+
+    // TODO : fetching all events from genesis takes too long
     const events = await getPastEvents(ntokContract, 'Mint', latest.number - 300000, latest.number);
     console.log("mint events : "+ JSON.stringify(events));
+
     for (mintEvent of events) {
       const {minter, mintAmount, mintTokens} = mintEvent.returnValues;
       const timestamp = await web3.eth.getBlock(mintEvent.blockNumber).timestamp;
@@ -416,19 +412,23 @@ app.get('/transactions', (req,res)=> {
       mints.push(solo_mint);
     }
   }
-  console.log("mints done ? : " + JSON.stringify(mints));
+  //console.log("mints done ? : " + JSON.stringify(mints));
 
   
   /*
   // RETRIEVE TRANSFER EVENT
   const transfers = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const transfersEvents = ntokContract.getPastEvents('Transfer', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    transfersEvents.forEach((item)=> {
+
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'Transfer', latest.number - 300000, latest.number);
+    console.log("Transfer events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {from, to, amount} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -447,28 +447,20 @@ app.get('/transactions', (req,res)=> {
       }
       transfers.push(solo_transfer);
     })
-
-  const resJson = {
-    "data": {
-      "limit": 20,
-      "page": page,
-      "total": total,
-      "result": results
-    }
-  }
-
-
   })
 
   // RETRIEVE BORROW
   const borrows = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const borrowsEvents = ntokContract.getPastEvents('Borrow', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    borrowsEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'Borrow', latest.number - 300000, latest.number);
+    console.log("Borrow events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {borrower, borrowAmount, accountBorrows, totalBorrows} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -491,13 +483,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE REPAY BORROW
   const repay_borrows = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const repayBorrowEvents = ntokContract.getPastEvents('RepayBorrow', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    repayBorrowEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'RepayBorrow', latest.number - 300000, latest.number);
+    console.log("RepayBorrow events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {borrower, borrowAmount, accountBorrows, totalBorrows} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -520,13 +515,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE REDEEM
   const redeems = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const redeemEvents = ntokContract.getPastEvents('Redeem', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    redeemEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'Redeem', latest.number - 300000, latest.number);
+    console.log("Redeem events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {redeemer, redeemAmount, redeemTokens} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -549,13 +547,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE APPROVAL
   const approvals = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const approvalsEvents = ntokContract.getPastEvents('Approval', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    approvalsEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'Approval', latest.number - 300000, latest.number);
+    console.log("Approval events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {owner, spender, amount} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -578,13 +579,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE LIQUIDATE BORROW
   const liquidate_borrows = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const liquidateBorrowEvents = ntokContract.getPastEvents('LiquidateBorrow', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    liquidateBorrowEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'LiquidateBorrow', latest.number - 300000, latest.number);
+    console.log("LiquidateBorrow events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {liquidator, borrower, repayAmount, nTokenCollateral, seizeTokens} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -607,13 +611,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE RESERVES ADDED
   const reserves_added = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const reservesAddedEvents = ntokContract.getPastEvents('ReservesAdded', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    reservesAddedEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'ReservesAdded', latest.number - 300000, latest.number);
+    console.log("ReservesAdded events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {benefactor, addAmount, newTotalReserves} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -636,13 +643,16 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE RESERVES REDUCED
   const reserves_reduced = [];
-  ntokens_array.forEach( (address) => {
-    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
-    const reservesReducedEvents = ntokContract.getPastEvents('ReservesReduced', {
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    reservesReducedEvents.forEach((item)=> {
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    const latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const events = await getPastEvents(ntokContract, 'ReservesReduced', latest.number - 300000, latest.number);
+    console.log("ReservesReduced events : "+ JSON.stringify(events));
+
+    for (item of events) {
       const {admin, reduceAmount, newTotalReserves} = item.returnValues;
       const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -663,13 +673,16 @@ app.get('/transactions', (req,res)=> {
     })
   })
  
+    
   // RETRIEVE WITHDRAW SEB
   const withdraws = [];
-  const withdrawSebEvents = sebVaultProxyContract.getPastEvents('Withdraw', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  withdrawSebEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const withdrawEvents = await getPastEvents(sebVaultProxyContract, 'Withdraw', latest.number - 300000, latest.number);
+  console.log("Withdraw events : "+ JSON.stringify(withdrawEvents));
+
+  for (item of withdrawEvents) {
     const {user, amount} = item.returnValues;
     const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -691,11 +704,13 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE DEPOSIT SEB
   const deposits = [];
-  const depositSebEvents = sebVaultProxyContract.getPastEvents('Deposit', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  depositSebEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const depositEvents = await getPastEvents(sebVaultProxyContract, 'Deposit', latest.number - 300000, latest.number);
+  console.log("Withdraw events : "+ JSON.stringify(depositEvents));
+
+  for (item of depositEvents) {
     const {user, amount} = item.returnValues;
     const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
@@ -717,12 +732,14 @@ app.get('/transactions', (req,res)=> {
   
   // RETRIEVE MINT SEB
   const mintsSEB = []
-  const mintSebEvents = sebUnitrollerContract.getPastEvents('MintSEB', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  mintSebEvents.forEach((item)=> {
-    const {minter, mintNAIAmount} = item.returnValues;
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const mintSEBEvents = await getPastEvents(sebUnitrollerContract, 'MintSEB', latest.number - 300000, latest.number);
+  console.log("MintSEB events : "+ JSON.stringify(mintSEBEvents));
+
+  for (item of mintSEBEvents) {
+    const {minter, mintSEBAmount} = item.returnValues;
     const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
     var solo_mintSEB = {
@@ -732,7 +749,7 @@ app.get('/transactions', (req,res)=> {
       "from": minter,
       "to": "",
       "nTokenAddress": null,
-      "amount": mintNAIAmount,
+      "amount": mintSEBAmount,
       "blockNumber": item.blockNumber,
       "timestamp": timestamp,
       "createdAt": "2022-08-20T10:47:42.000Z",
@@ -743,12 +760,14 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE REPAY SEB
   const repaysSEB = []
-  const repaySebEvents = sebUnitrollerContract.getPastEvents('RepaySEB', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  repaySebEvents.forEach((item)=> {
-    const {payer, borrower, mintNAIAmount} = item.returnValues;
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const repaySEBEvents = await getPastEvents(sebUnitrollerContract, 'RepaySEB', latest.number - 300000, latest.number);
+  console.log("RepaySEB events : "+ JSON.stringify(repaySEBEvents));
+
+  for (item of repaySEBEvents) {
+    const {payer, borrower, mintSEBAmount} = item.returnValues;
     const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
 
     var solo_repaySEB = {
@@ -758,7 +777,7 @@ app.get('/transactions', (req,res)=> {
       "from": payer,
       "to": "",
       "nTokenAddress": null,
-      "amount": mintNAIAmount,
+      "amount": mintSEBAmount,
       "blockNumber": item.blockNumber,
       "timestamp": timestamp,
       "createdAt": "2022-08-20T10:47:42.000Z",
@@ -766,14 +785,16 @@ app.get('/transactions', (req,res)=> {
     }
     repaysSEB.push(solo_repaySEB);
   })
-
+  
   // RETRIEVE VOTE CASTS
   const voteCasts = [];
-  const voteCastEvents = governorContract.getPastEvents('VoteCast', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  voteCastEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const voteCastEvents = await getPastEvents(governorContract, 'VoteCast', latest.number - 300000, latest.number);
+  console.log("voteCastEvents : "+ JSON.stringify(voteCastEvents));
+
+  for (item of voteCastEvents) {
     const { voter, proposalId, support, votes, reason } = item.returnValues;
       const blockTimestamp = web3.eth.getBlock(item.blockNumber).timestamp;
       var item = {
@@ -794,11 +815,13 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE PROPOSAL CREATED
   const proposalsCreated = [];
-  const proposalsCreatedEvents = governorContract.getPastEvents('ProposalCreated', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  proposalsCreatedEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const proposalCreatedEvents = await getPastEvents(governorContract, 'ProposalCreated', latest.number - 300000, latest.number);
+  console.log("proposalCreatedEvents : "+ JSON.stringify(proposalCreatedEvents));
+
+  for (item of proposalCreatedEvents) {
     const { id, proposer, targets, values, signatures, calldatas,startBlock, endBlock, description  } = item.returnValues;
       const blockTimestamp = web3.eth.getBlock(item.blockNumber).timestamp;
       var item = {
@@ -819,11 +842,13 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE PROPOSAL CANCELED
   const proposalsCanceled = [];
-  const proposalsCanceledEvents = governorContract.getPastEvents('ProposalCanceled', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  proposalsCanceledEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const proposalsCanceledEvents = await getPastEvents(governorContract, 'ProposalCanceled', latest.number - 300000, latest.number);
+  console.log("proposalsCanceledEvents : "+ JSON.stringify(proposalsCanceledEvents));
+
+  for (item of proposalsCanceledEvents) {
     const { id } = item.returnValues;
       const blockTimestamp = web3.eth.getBlock(item.blockNumber).timestamp;
       var item = {
@@ -844,11 +869,13 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE PROPOSAL QUEUED
   const proposalsQueued = [];
-  const proposalsQueuedEvents = governorContract.getPastEvents('ProposalQueued', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  proposalsQueuedEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const proposalsQueuedEvents = await getPastEvents(governorContract, 'ProposalsQueued', latest.number - 300000, latest.number);
+  console.log("proposalsQueuedEvents : "+ JSON.stringify(proposalsQueuedEvents));
+
+  for (item of proposalsQueuedEvents) {
     const { id } = item.returnValues;
       const blockTimestamp = web3.eth.getBlock(item.blockNumber).timestamp;
       var item = {
@@ -869,11 +896,13 @@ app.get('/transactions', (req,res)=> {
 
   // RETRIEVE PROPOSAL EXECUTED
   const proposalsExecuted = [];
-  const proposalsExecutedEvents = governorContract.getPastEvents('ProposalExecuted', {
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
-  proposalsExecutedEvents.forEach((item)=> {
+  const latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const proposalsExecutedEvents = await getPastEvents(governorContract, 'ProposalExecuted', latest.number - 300000, latest.number);
+  console.log("proposalsExecutedEvents : "+ JSON.stringify(proposalsExecutedEvents));
+
+  for (item of proposalsExecutedEvents) {
     const { id } = item.returnValues;
       const blockTimestamp = web3.eth.getBlock(item.blockNumber).timestamp;
       var item = {
@@ -1008,6 +1037,7 @@ app.get('/transactions', (req,res)=> {
   }*/
   
   //results = results.slice( page * 20, (page+1) * 20 );
+  // TODO : MOCK DATA (ITS REAL BTW JUST RETRIEVED FROM THE EVMOS TESTNET NODE) => HAS TO CHANGE FOR REAL USE CASE 
   results = [{"category":"ntoken","event":"Mint","transactionHash":"0x4227a0c51e96864791b8fbfa60ac81f6507913f7670e5999ae383b06b2bf1520","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"0xdffjkdjkefff","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5628802,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0x03ffe8c00b1fd9d069a59fa5d0926a2626d817cc5fe083b71212bffb8af35824","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5628986,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0x60cf1fb5b79230bbbdb014af96af78d4d98a7e9afa09c3370855ab6b2db61389","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xfaa9Bb1E7602AB9A9aAea86cCcbB6B3ddeAbbc54","amount":"20000000000000000000","blockNumber":5629113,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0xa0c2ca1f7acaa150cbabf6f205c881e0e9f1f968ec2a0e489e833ddc2decfb06","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5664397,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"}]
   //console.log('results : '+ JSON.stringify(results));
   const resJson = {
