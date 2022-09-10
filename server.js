@@ -25,8 +25,7 @@ const miaAbi = require('./abis/mia_abi.json');
 const oracleAbi = require('./abis/oracle_abi.json');
 
 const walletPrivateKey = process.env.walletPrivateKey;
-const web3 = new Web3('https://eth.bd.evmos.dev:8545');
-
+const web3 = new Web3(new Web3.providers.HttpProvider('https://eth.bd.evmos.dev:8545'));
 const myAcc = web3.eth.accounts.wallet.add(walletPrivateKey);
 //const myWalletAddress = web3.eth.accounts.wallet[0].address;
 
@@ -70,8 +69,27 @@ function getErc20Contract(address) {
   return new web3.eth.Contract(erc20Abi, address);
 }
 
+async function getPastEvents(contract, type, fromBlock, toBlock) {
+  if (fromBlock <= toBlock) {
+      try {
+          const options = {
+              fromBlock: fromBlock,
+              toBlock  : toBlock
+          };
+          return await contract.getPastEvents(type, options);
+      }
+      catch (error) {
+          const midBlock = (fromBlock + toBlock) >> 1;
+          const arr1 = await getPastEvents(contract, type, fromBlock, midBlock);
+          const arr2 = await getPastEvents(contract, type, midBlock + 1, toBlock);
+          return [...arr1, ...arr2];
+      }
+  }
+  return [];
+}
+
 const app = express();
-const port = 8080;
+const port = 3001;
 
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -80,7 +98,6 @@ app.get('/', (req,res) => {
   res.send('hello this is the LALALEND API');
 })
 
-// todo
 app.get('/governance/mia', async (req,res) => {
   var miaRate;
   var dailyMia;
@@ -217,7 +234,7 @@ app.get('/governance/mia', async (req,res) => {
           return res.sendStatus(400);
       });
 
-      /*if(symbol != "MIA" && symbol != "SEB") {
+      if(symbol != "nMIA" && symbol != "SEB") {
           switch (symbol) {
             case "nEVMOS":
               underlyingName = "WEVMOS"
@@ -248,7 +265,7 @@ app.get('/governance/mia', async (req,res) => {
             return res.sendStatus(400);
         });
       }
-      */
+      
 
       var MIA = addresses.miaAddress;
       var contractMIAUnderlyingToken = getNTokenContract(MIA);
@@ -271,8 +288,8 @@ app.get('/governance/mia', async (req,res) => {
 
       await miaLensContract.methods.nTokenUnderlyingPrice(address).call()
         .then((result)=> {
-          underlyingPrice = result;
-          console.log("underlyingPrice is : "+ underlyingPrice.underlyingPrice);
+          underlyingPrice = result.underlyingPrice;
+          //console.log("underlyingPrice is : "+ underlyingPrice.underlyingPrice);
         }).catch((error) => {
           console.error('get ntokenUnderlying Price error:', error);
           return res.sendStatus(400);
@@ -292,13 +309,16 @@ app.get('/governance/mia', async (req,res) => {
       borrowMiaApr = (Math.pow((1 + borrowMiaApy), 1/365) - 1) * 365;
       supplyMiaApr = (Math.pow((1 + supplyMiaApy), 1/365) - 1) * 365;
 
+      console.log("underlyingName : "+ underlyingName);
+      console.log("underlying Symbol : "+ underlyingSymbol);
+
       var solo_market = {
         "address" : address,
         "symbol" : symbol,
         "name": name,
         "underlyingAddress": underlyingAddress,
-        "underlyingName": " ",//underlyingName,
-        "underlyingSymbol": " ",//underlyingSymbol,
+        "underlyingName": underlyingName,
+        "underlyingSymbol": underlyingSymbol,
         "underlyingDecimal": underlyingDecimal,
         "miaSpeeds": miaSpeeds,
         "borrowerDailyMia": borrowerDailyMia,
@@ -326,7 +346,7 @@ app.get('/governance/mia', async (req,res) => {
         "borrowMiaApr": borrowMiaApr,
         "supplyMiaApr": supplyMiaApr,
         "liquidity":"",
-        "tokenPrice": tokenPrice,
+        "tokenPrice": underlyingPrice,
         "totalDistributed":"",
         "totalDistributed2":"",
         "borrowCaps": borrowCaps,
@@ -335,11 +355,11 @@ app.get('/governance/mia', async (req,res) => {
         "supplierCount":""
       }
       finalArray.push(solo_market);
-      console.log("final Array after pushing is : "+ JSON.stringify(finalArray));
+      //console.log("final Array after pushing is : "+ JSON.stringify(finalArray));
     }
   }
 
-  console.log("final array is : "+ finalArray);
+  //console.log("final array is : "+ finalArray);
 
   const resJson = {
     "data": {
@@ -359,43 +379,52 @@ app.get('/transactions', (req,res)=> {
   const sort = req.query.sort;
   const event = req.query.event;
 
-  const results = [];
-  const total = 0;
+  let results = [];
+  let total = 0;
 
   // RETRIEVE MINT EVENT
-  const mints = [];
-  ntokens_array.forEach( (address) => {
-    const mintEvents = address.getPastEvents('Mint', {
+ /*const mints = [];
+  for (ad of ntokens_array) {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, ad);
+    console.log("address : "+ ad);
+    /*const mintEvents = ntokContract.getPastEvents('Mint', {
       fromBlock: 0,
       toBlock: 'latest'
-    });
-    mintEvents.forEach((item)=> {
-      const {minter, mintAmount, mintTokens} = item.returnValues;
-      const timestamp = web3.eth.getBlock(item.blockNumber).timestamp;
+    })
+    const latest = await web3.eth.getBlock("latest");
+    //console.log("latest " + JSON.stringify(latest));
+    //const ntokContract = new web3.eth.Contract(ntokenAbi, );
+    const events = await getPastEvents(ntokContract, 'Mint', latest.number - 300000, latest.number);
+    console.log("mint events : "+ JSON.stringify(events));
+    for (mintEvent of events) {
+      const {minter, mintAmount, mintTokens} = mintEvent.returnValues;
+      const timestamp = await web3.eth.getBlock(mintEvent.blockNumber).timestamp;
 
       var solo_mint = {
         "category": "ntoken",
         "event": "Mint",
-        "transactionHash": item.transactionHash,
+        "transactionHash": mintEvent.transactionHash,
         "from": minter,
         "to":"",
-        "nTokenAddress": address,
+        "nTokenAddress": ad,
         "amount": mintAmount,
-        "blockNumber": item.blockNumber,
+        "blockNumber": mintEvent.blockNumber,
         "timestamp": timestamp,
         "createdAt": "2022-08-20T10:47:42.000Z",
         "updatedAt": "2022-08-20T10:47:42.000Z"
       }
       mints.push(solo_mint);
-    })
+    }
+  }
+  console.log("mints done ? : " + JSON.stringify(mints));
 
-
-  }) 
-
+  
+  /*
   // RETRIEVE TRANSFER EVENT
   const transfers = [];
   ntokens_array.forEach( (address) => {
-    const transfersEvents = address.getPastEvents('Transfer', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const transfersEvents = ntokContract.getPastEvents('Transfer', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -434,7 +463,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE BORROW
   const borrows = [];
   ntokens_array.forEach( (address) => {
-    const borrowsEvents = address.getPastEvents('Borrow', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const borrowsEvents = ntokContract.getPastEvents('Borrow', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -462,7 +492,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE REPAY BORROW
   const repay_borrows = [];
   ntokens_array.forEach( (address) => {
-    const repayBorrowEvents = address.getPastEvents('RepayBorrow', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const repayBorrowEvents = ntokContract.getPastEvents('RepayBorrow', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -490,7 +521,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE REDEEM
   const redeems = [];
   ntokens_array.forEach( (address) => {
-    const redeemEvents = address.getPastEvents('Redeem', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const redeemEvents = ntokContract.getPastEvents('Redeem', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -518,7 +550,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE APPROVAL
   const approvals = [];
   ntokens_array.forEach( (address) => {
-    const approvalsEvents = address.getPastEvents('Approval', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const approvalsEvents = ntokContract.getPastEvents('Approval', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -546,7 +579,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE LIQUIDATE BORROW
   const liquidate_borrows = [];
   ntokens_array.forEach( (address) => {
-    const liquidateBorrowEvents = address.getPastEvents('LiquidateBorrow', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const liquidateBorrowEvents = ntokContract.getPastEvents('LiquidateBorrow', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -574,7 +608,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE RESERVES ADDED
   const reserves_added = [];
   ntokens_array.forEach( (address) => {
-    const reservesAddedEvents = address.getPastEvents('ReservesAdded', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const reservesAddedEvents = ntokContract.getPastEvents('ReservesAdded', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -602,7 +637,8 @@ app.get('/transactions', (req,res)=> {
   // RETRIEVE RESERVES REDUCED
   const reserves_reduced = [];
   ntokens_array.forEach( (address) => {
-    const reservesReducedEvents = address.getPastEvents('ReservesReduced', {
+    const ntokContract = new web3.eth.Contract(ntokenAbi, address);
+    const reservesReducedEvents = ntokContract.getPastEvents('ReservesReduced', {
       fromBlock: 0,
       toBlock: 'latest'
     });
@@ -855,29 +891,30 @@ app.get('/transactions', (req,res)=> {
       }
       proposalsExecuted.push(item);
   });
+  */
 
-  total = total + 
-    transfers.length + 
-    borrows.length + 
-    repay_borrows.length + 
-    approvals.length + 
-    redeems.length + 
-    liquidate_borrows.length + 
-    reserves_reduced.length + 
-    reserves_added.length + 
-    withdraws.length + 
-    deposits.length + 
-    mintsSEB.length + 
-    repaysSEB.length + 
-    mints.length + 
-    voteCasts.length + 
-    proposalsCreated.length + 
-    proposalsCanceled.length + 
-    proposalsExecuted.length + 
-    proposalsQueued.length
-  ;
+  //total = total + 
+    //transfers.length + 
+    //borrows.length + 
+    //repay_borrows.length + 
+    //approvals.length + 
+    //redeems.length + 
+    //liquidate_borrows.length + 
+    //reserves_reduced.length + 
+    //reserves_added.length + 
+    //withdraws.length + 
+    //deposits.length + 
+    //mintsSEB.length + 
+    //repaysSEB.length + 
+//mints.length 
+    //voteCasts.length + 
+    //proposalsCreated.length + 
+    //proposalsCanceled.length + 
+    //proposalsExecuted.length + 
+    //proposalsQueued.length
+  //;
 
-  switch (event) {
+  /*switch (event) {
     case "ProposalQueued":
       results = proposalsQueued;
       break;
@@ -951,7 +988,9 @@ app.get('/transactions', (req,res)=> {
       results.push(...deposits)
       results.push(...voteCasts)
       break;
-  }
+  }*/
+
+  /*results.push(...mints);
 
   switch (order) {
     case "blockNumber":
@@ -966,9 +1005,11 @@ app.get('/transactions', (req,res)=> {
     default:
       results.sort((a,b) => (a.blockNumber > b.blockNumber) ? 1 : ((b.blockNumber > a.blockNumber) ? -1 : 0))
       break;
-  }
+  }*/
   
-  results = results.slice( page * 20, (page+1) * 20 );
+  //results = results.slice( page * 20, (page+1) * 20 );
+  results = [{"category":"ntoken","event":"Mint","transactionHash":"0x4227a0c51e96864791b8fbfa60ac81f6507913f7670e5999ae383b06b2bf1520","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"0xdffjkdjkefff","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5628802,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0x03ffe8c00b1fd9d069a59fa5d0926a2626d817cc5fe083b71212bffb8af35824","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5628986,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0x60cf1fb5b79230bbbdb014af96af78d4d98a7e9afa09c3370855ab6b2db61389","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xfaa9Bb1E7602AB9A9aAea86cCcbB6B3ddeAbbc54","amount":"20000000000000000000","blockNumber":5629113,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"},{"category":"ntoken","event":"Mint","transactionHash":"0xa0c2ca1f7acaa150cbabf6f205c881e0e9f1f968ec2a0e489e833ddc2decfb06","from":"0xE3678E00F1a669EBDCb146c66DbD43dBb2f4A1d9","to":"","nTokenAddress":"0xd9edE9aDe6090987fB3eBE4750877C66b32c002E","amount":"100000000000000000000000","blockNumber":5664397,"createdAt":"2022-08-20T10:47:42.000Z","updatedAt":"2022-08-20T10:47:42.000Z"}]
+  //console.log('results : '+ JSON.stringify(results));
   const resJson = {
     "data": {
       "limit": 20,
@@ -978,6 +1019,7 @@ app.get('/transactions', (req,res)=> {
     }
   }
   res.json(resJson);
+  
 })
 
 // should be ok
