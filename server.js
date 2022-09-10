@@ -69,10 +69,11 @@ function getErc20Contract(address) {
   return new web3.eth.Contract(erc20Abi, address);
 }
 
-async function getPastEvents(contract, type, fromBlock, toBlock) {
+async function getPastEvents(contract, type, fromBlock, toBlock, filter = {}) {
   if (fromBlock <= toBlock) {
       try {
           const options = {
+              filter: filter,
               fromBlock: fromBlock,
               toBlock  : toBlock
           };
@@ -311,7 +312,7 @@ app.get('/governance/mia', async (req,res) => {
 
       console.log("underlyingName : "+ underlyingName);
       console.log("underlying Symbol : "+ underlyingSymbol);
-
+      console.log('total supply : '+ totalSupply);
       var solo_market = {
         "address" : address,
         "symbol" : symbol,
@@ -1053,9 +1054,9 @@ app.get('/transactions', (req,res)=> {
 })
 
 // should be ok
-app.get('/proposals', (req,res) => {
-  const offset = req.query.offset;
-  const limit = req.query.limit;
+app.get('/proposals', async (req,res) => {
+  let offset = req.query.offset;
+  let limit = req.query.limit;
   if(offset === undefined) offset = 0;
   if(limit === undefined) limit = 100;
 
@@ -1064,169 +1065,186 @@ app.get('/proposals', (req,res) => {
   var proposals = [];
   var finalArray = [];
 
-  governorContract.methods.proposalCount().call()
+  await governorContract.methods.proposalCount().call()
     .then((result) => {
       total = web3.utils.fromWei(result);
+      console.log("total proposals : "+ total);
     }).catch((error) => {
       console.error('proposalCOUNT error:', error);
       return res.sendStatus(400);
   });
+  /*
+  if(total != 0) {
+    var proposalsIds = [];
+    for(var i=1;i<=total;i++) {
+      proposalsIds.push(i);
+    }
+    var proposalsIdsWithParams = [];
+    for(var i = total - limit + 1 - offset; i<= total - offset ;i++) {
+      proposalsIdsWithParams.push(i);
+    }
 
-  var proposalsIds = [];
-  for(var i=1;i<=total;i++){
-    proposalsIds.push(i);
-  }
-  var proposalsIdsWithParams = [];
-  for(var i = total - limit + 1 - offset; i<= total - offset ;i++) {
-    proposalsIdsWithParams.push(i);
-  }
-
-  miaLensContract.methods.getGovProposals(governorAddress,proposalsIdsWithParams).call()
-    .then((result)=> {
-      proposals = result
-    }).catch((error) => {
-      console.error('get getGovProposals error:', error);
-      return res.sendStatus(400);
-  });
-
-  proposals.map((item)=> {
-    var state ;
-    governorContract.methods.state(item.proposalId).call()
-      .then((result) => {
-        state = result;
+    await miaLensContract.methods.getGovProposals(governorAddress, proposalsIdsWithParams).call()
+      .then((result)=> {
+        proposals = result
       }).catch((error) => {
-        console.error('state error:', error);
+        console.error('get getGovProposals error:', error);
         return res.sendStatus(400);
     });
 
-    // GET THE EVENT WHEN THE PROPOSAL HAS BEEN CREATED TO RETRIEVE ADDDINTITONAL INFOS
-
-    const proposalCreatedEvents = governorContract.getPastEvents('ProposalCreated', {
-      filter : {id : item.proposalId},
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
-    var proposalEvent = proposalCreatedEvents[0];
-    const {id,proposer, targets, values, signatures, calldatas, startBlock, endBlock, description} = proposalEvent.returnValues;
-    const blockTimestamp = web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
-
-    // CHECK IF THE STATE IS WHETHER CANCELED, EXECUTED OR DEFEATED, OR QUEUED
-    var cancelBlock = null;
-    var cancelTxHash = null;
-    var cancelTimestamp = null;
-    var queuedBlock = null;
-    var queuedTxHash = null;
-    var queuedTimestamp = null;
-    var executedBlock = null;
-    var executedTxHash = null;
-    var executedTimestamp = null;
-
-    if(state === "Canceled") {
-      // retrieve infos about the event to get cancel infos
-      const proposalCanceledEvents = governorContract.getPastEvents('ProposalCanceled', {
-        filter : {id : item.proposalId},
-        fromBlock: 0,
-        toBlock: 'latest'
+    proposals.map(async (item)=> {
+      var state ;
+      await governorContract.methods.state(item.proposalId).call()
+        .then((result) => {
+          state = result;
+        }).catch((error) => {
+          console.error('state error:', error);
+          return res.sendStatus(400);
       });
-      var canceledEvent = proposalCanceledEvents[0];
-      cancelBlock = canceledEvent.blockNumber;
-      cancelTxHash = canceledEvent.transactionHash;
-      cancelTimestamp = web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
 
-    }
-    if(state === "Executed") {
+      // GET THE EVENT WHEN THE PROPOSAL HAS BEEN CREATED TO RETRIEVE ADDDINTITONAL INFOS
+      let latest = await web3.eth.getBlock("latest");
 
-      const proposalQueuedEvents = governorContract.getPastEvents('ProposalQueued', {
-        filter : {id : item.proposalId},
-        fromBlock: 0,
-        toBlock: 'latest'
-      });
-      var queuedEvent = proposalQueuedEvents[0];
-      queuedBlock = queuedEvent.blockNumber;
-      queuedTxHash = queuedEvent.transactionHash;
-      queuedTimestamp = web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
+      // TODO : fetching all events from genesis takes too long
+      const proposalCreatedEvents = await getPastEvents(
+          governorContract, 'ProposalCreated', latest.number - 300000, latest.number, {id : item.proposalId}
+      );
 
-      const proposalExecutedEvents = governorContract.getPastEvents('ProposalExecuted', {
-        filter : {id : item.proposalId},
-        fromBlock: 0,
-        toBlock: 'latest'
-      });
-      var executedEvent = proposalExecutedEvents[0];
-      executedBlock = executedEvent.blockNumber;
-      executedTxHash = executedEvent.transactionHash;
-      executedTimestamp = web3.eth.getBlock(executedEvent.blockNumber).timestamp;
-    }
+     
+      var proposalEvent = proposalCreatedEvents[0];
+      const {id,proposer, targets, values, signatures, calldatas, startBlock, endBlock, description} = proposalEvent.returnValues;
+      const blockTimestamp = await web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
 
-    var startTimestamp = web3.eth.getBlock(item.startBlock).timestamp;
-    var endTimestamp = web3.eth.getBlock(item.endBlock).timestamp;
-    var startTx = web3.eth.getBlock(item.startBlock).hash;
-    var endTx = web3.eth.getBlock(item.endBlock).hash;
+      // CHECK IF THE STATE IS WHETHER CANCELED, EXECUTED OR DEFEATED, OR QUEUED
+      var cancelBlock = null;
+      var cancelTxHash = null;
+      var cancelTimestamp = null;
+      var queuedBlock = null;
+      var queuedTxHash = null;
+      var queuedTimestamp = null;
+      var executedBlock = null;
+      var executedTxHash = null;
+      var executedTimestamp = null;
 
-    var actions = [];
-    for(var i=0;i<item.targets.length;i++){
-      var solo_action = {
-        "signature": item.signatures[i],
-        "target": item.targets[i],
-        "value": item.values[i],
-        "title":"",
-        "data": item.calldatas[i]
+      if(state === "Canceled") {
+        // retrieve infos about the event to get cancel infos
+        
+        latest = await web3.eth.getBlock("latest");
+
+        // TODO : fetching all events from genesis takes too long
+        const proposalCanceledEvents = await getPastEvents(
+            governorContract, 'ProposalCanceled', latest.number - 300000, latest.number, {id : item.proposalId}
+        );
+        var canceledEvent = proposalCanceledEvents[0];
+        cancelBlock = canceledEvent.blockNumber;
+        cancelTxHash = canceledEvent.transactionHash;
+        cancelTimestamp = await web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
+
       }
-      actions.push(solo_action);
-    }
-    var solo_item = {
-      "id": item.proposalId,
-      "description": description,
-      "targets": item.targets,
-      "values": item.values,
-      "signatures": item.signatures,
-      "calldatas": item.calldatas,
-    
-      "createdBlock":proposalEvent.blockNumber,
-      "createdTxHash": proposalEvent.transactionHash, 
-      "createdTimestamp": blockTimestamp, 
+      if(state === "Executed") {
 
-      "startBlock": item.startBlock,
+      
+        latest = await web3.eth.getBlock("latest");
 
-      "startTxHash": startTx,
-      "startTimestamp": startTimestamp,
+        // TODO : fetching all events from genesis takes too long
+        const proposalQueuedEvents = await getPastEvents(
+            governorContract, 'ProposalQueued', latest.number - 300000, latest.number, {id : item.proposalId}
+        );
+        var queuedEvent = proposalQueuedEvents[0];
+        queuedBlock = queuedEvent.blockNumber;
+        queuedTxHash = queuedEvent.transactionHash;
+        queuedTimestamp = await web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
 
-      "cancelBlock": cancelBlock,
-      "cancelTxHash": cancelTxHash,
-      "cancelTimestamp": cancelTimestamp,
+        
+        latest = await web3.eth.getBlock("latest");
 
-      "endBlock": item.endBlock,
+        // TODO : fetching all events from genesis takes too long
+        const proposalExecutedEvents = await getPastEvents(
+            governorContract, 'ProposalExecuted', latest.number - 300000, latest.number, {id : item.proposalId}
+        );
+        var executedEvent = proposalExecutedEvents[0];
+        executedBlock = executedEvent.blockNumber;
+        executedTxHash = executedEvent.transactionHash;
+        executedTimestamp = await web3.eth.getBlock(executedEvent.blockNumber).timestamp;
+      }
 
-      "endTxHash": endTx,
-      "endTimestamp":endTimestamp,
+      var startTimestamp = await web3.eth.getBlock(item.startBlock).timestamp;
+      var endTimestamp = await web3.eth.getBlock(item.endBlock).timestamp;
+      var startTx = await web3.eth.getBlock(item.startBlock).hash;
+      var endTx = await web3.eth.getBlock(item.endBlock).hash;
 
-      "queuedBlock": queuedBlock,
-      "queuedTxHash": queuedTxHash,
-      "queuedTimestamp": queuedTimestamp,
+      var actions = [];
+      for(var i=0;i<item.targets.length;i++){
+        var solo_action = {
+          "signature": item.signatures[i],
+          "target": item.targets[i],
+          "value": item.values[i],
+          "title":"",
+          "data": item.calldatas[i]
+        }
+        actions.push(solo_action);
+      }
+      var solo_item = {
+        "id": item.proposalId,
+        "description": description,
+        "targets": item.targets,
+        "values": item.values,
+        "signatures": item.signatures,
+        "calldatas": item.calldatas,
+      
+        "createdBlock":proposalEvent.blockNumber,
+        "createdTxHash": proposalEvent.transactionHash, 
+        "createdTimestamp": blockTimestamp, 
 
-      "executedBlock": executedBlock,
-      "executedTxHash": executedTxHash,
-      "executedTimestamp": executedTimestamp,
+        "startBlock": item.startBlock,
 
-      "proposer": item.proposer,
-      "eta": item.eta,
-      "forVotes": item.forVotes,
-      "againstVotes": item.againstVotes,
-      "canceled": item.canceled,
-      "executed": item.executed,
-      "state": state,
-      "voterCount":null,
-      "abstainedVotes":item.abstainVotes,
-      "governorName":"GovernorBravoDelegate",
-      "createdAt":"2022-07-19T11:22:11.000Z",
-      "updatedAt":"2022-08-19T12:51:04.000Z",
-      "actions": actions,
-      "blockNumber":22087593
-    }
+        "startTxHash": startTx,
+        "startTimestamp": startTimestamp,
 
-    finalArray.push(solo_item);
-  })
+        "cancelBlock": cancelBlock,
+        "cancelTxHash": cancelTxHash,
+        "cancelTimestamp": cancelTimestamp,
+
+        "endBlock": item.endBlock,
+
+        "endTxHash": endTx,
+        "endTimestamp":endTimestamp,
+
+        "queuedBlock": queuedBlock,
+        "queuedTxHash": queuedTxHash,
+        "queuedTimestamp": queuedTimestamp,
+
+        "executedBlock": executedBlock,
+        "executedTxHash": executedTxHash,
+        "executedTimestamp": executedTimestamp,
+
+        "proposer": item.proposer,
+        "eta": item.eta,
+        "forVotes": item.forVotes,
+        "againstVotes": item.againstVotes,
+        "canceled": item.canceled,
+        "executed": item.executed,
+        "state": state,
+        "voterCount":null,
+        "abstainedVotes":item.abstainVotes,
+        "governorName":"GovernorBravoDelegate",
+        "createdAt":"2022-07-19T11:22:11.000Z",
+        "updatedAt":"2022-08-19T12:51:04.000Z",
+        "actions": actions,
+        "blockNumber":22087593
+      }
+
+      finalArray.push(solo_item);
+    })
+
+  }
 
   finalArray.reverse();
+
+  
+  console.log("FINAL ARRAY REVERSED : "+ JSON.stringify(finalArray));
+  
+
   const resJson = {
     "data": {
       "offset": offset,
@@ -1236,11 +1254,14 @@ app.get('/proposals', (req,res) => {
     }
   }
   res.json(resJson);
-
+  */
+  // TODO : mockdata for the sake of testing purposes
+  const proposals_data = require("./mock_data/proposals_data.json");
+  res.json(proposals_data);
 })
 
 // should be ok
-app.get('/proposals/:id', (req,res) => {
+app.get('/proposals/:id', async (req,res) => {
   var proposal = [];
   miaLensContract.methods.getGovProposals(governorAddress,[req.params.id]).call()
     .then((result)=> {
@@ -1254,14 +1275,15 @@ app.get('/proposals/:id', (req,res) => {
 
   // GET THE EVENT WHEN THE PROPOSAL HAS BEEN CREATED TO RETRIEVE ADDDINTITONAL INFOS
 
-  const proposalCreatedEvents = governorContract.getPastEvents('ProposalCreated', {
-    filter : {id : item.proposalId},
-    fromBlock: 0,
-    toBlock: 'latest'
-  });
+  let latest = await web3.eth.getBlock("latest");
+
+  // TODO : fetching all events from genesis takes too long
+  const proposalCreatedEvents = await getPastEvents(
+      governorContract, 'ProposalCreated', latest.number - 300000, latest.number, {id : item.proposalId}
+  );
   var proposalEvent = proposalCreatedEvents[0];
   const {id,proposer, targets, values, signatures, calldatas, startBlock, endBlock, description} = proposalEvent.returnValues;
-  const blockTimestamp = web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
+  const blockTimestamp = await web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
 
   // CHECK IF THE STATE IS WHETHER CANCELED, EXECUTED OR DEFEATED, OR QUEUED
   var cancelBlock = null;
