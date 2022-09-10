@@ -373,7 +373,7 @@ app.get('/governance/mia', async (req,res) => {
 
 })
 
-app.get('/transactions', (req,res)=> {
+app.get('/transactions', async (req,res)=> {
   const page = req.query.page;
   const order = req.query.order;
   const sort = req.query.sort;
@@ -1794,7 +1794,7 @@ app.get('/voters/history/:id', async (req,res) => {
 
 // todo 
 app.get('/market_history/graph', (req,res) => {
-  const asset = req.query.asset;
+  /*const asset = req.query.asset;
   const type = req.query.type;
   const limit = req.query.limit;
 
@@ -1808,8 +1808,8 @@ app.get('/market_history/graph', (req,res) => {
     "blockTimestamp":1660997578,
     "borrowApy":"5.287578858801925254",
     "supplyApy":"0.874159041791359154",
-    "borrowVenusApy":"4.401769243871242171",
-    "supplyVenusApy":"0.913693361607198697",
+    "borrowMiaApy":"4.401769243871242171",
+    "supplyMiaApy":"0.913693361607198697",
     "exchangeRate":"0.0202131888891651556",
     "priceUSD":"0.3406",
     "totalBorrow":"1156266.64680214964553745108",
@@ -1817,7 +1817,6 @@ app.get('/market_history/graph', (req,res) => {
     "createdAt":"2022-08-20T12:13:28.000Z",
     "updatedAt":"2022-08-20T13:00:02.000Z"
   };
-
 
   const resJson = {
     "data": {
@@ -1827,6 +1826,9 @@ app.get('/market_history/graph', (req,res) => {
     }
   }
   res.json(resJson);
+  */
+  const graph_data = require("./mock_data/market_history.json");
+  res.json(graph_data);
 })
 
 app.listen(port, () => console.log(`API server running on port ${port}`));
