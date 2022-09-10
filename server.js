@@ -1262,8 +1262,9 @@ app.get('/proposals', async (req,res) => {
 
 // should be ok
 app.get('/proposals/:id', async (req,res) => {
-  var proposal = [];
-  miaLensContract.methods.getGovProposals(governorAddress,[req.params.id]).call()
+  
+  /*var proposal = [];
+  await miaLensContract.methods.getGovProposals(governorAddress,[req.params.id]).call()
     .then((result)=> {
       proposal = result
     }).catch((error) => {
@@ -1298,44 +1299,45 @@ app.get('/proposals/:id', async (req,res) => {
 
   if(state === "Canceled") {
     // retrieve infos about the event to get cancel infos
-    const proposalCanceledEvents = governorContract.getPastEvents('ProposalCanceled', {
-      filter : {id : item.proposalId},
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
+    latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const proposalCanceledEvents = await getPastEvents(
+        governorContract, 'ProposalCanceled', latest.number - 300000, latest.number, {id : item.proposalId}
+    );
     var canceledEvent = proposalCanceledEvents[0];
     cancelBlock = canceledEvent.blockNumber;
     cancelTxHash = canceledEvent.transactionHash;
-    cancelTimestamp = web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
+    cancelTimestamp = await web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
 
   }
   if(state === "Executed") {
 
-    const proposalQueuedEvents = governorContract.getPastEvents('ProposalQueued', {
-      filter : {id : item.proposalId},
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
+    latest = await web3.eth.getBlock("latest");
+
+    // TODO : fetching all events from genesis takes too long
+    const proposalQueuedEvents = await getPastEvents(
+        governorContract, 'ProposalQueued', latest.number - 300000, latest.number, {id : item.proposalId}
+    );
     var queuedEvent = proposalQueuedEvents[0];
     queuedBlock = queuedEvent.blockNumber;
     queuedTxHash = queuedEvent.transactionHash;
-    queuedTimestamp = web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
+    queuedTimestamp = await web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
 
-    const proposalExecutedEvents = governorContract.getPastEvents('ProposalExecuted', {
-      filter : {id : item.proposalId},
-      fromBlock: 0,
-      toBlock: 'latest'
-    });
+    // TODO : fetching all events from genesis takes too long
+    const proposalExecutedEvents = await getPastEvents(
+    governorContract, 'ProposalExecuted', latest.number - 300000, latest.number, {id : item.proposalId}
+    );
     var executedEvent = proposalExecutedEvents[0];
     executedBlock = executedEvent.blockNumber;
     executedTxHash = executedEvent.transactionHash;
-    executedTimestamp = web3.eth.getBlock(executedEvent.blockNumber).timestamp;
+    executedTimestamp = await web3.eth.getBlock(executedEvent.blockNumber).timestamp;
   }
 
-  var startTimestamp = web3.eth.getBlock(item.startBlock).timestamp;
-  var endTimestamp = web3.eth.getBlock(item.endBlock).timestamp;
-  var startTx = web3.eth.getBlock(item.startBlock).hash;
-  var endTx = web3.eth.getBlock(item.endBlock).hash;
+  var startTimestamp = await web3.eth.getBlock(item.startBlock).timestamp;
+  var endTimestamp = await web3.eth.getBlock(item.endBlock).timestamp;
+  var startTx = await web3.eth.getBlock(item.startBlock).hash;
+  var endTx = await web3.eth.getBlock(item.endBlock).hash;
 
   var actions = [];
   for(var i=0;i<item.targets.length;i++){
@@ -1397,31 +1399,35 @@ app.get('/proposals/:id', async (req,res) => {
     }
   }
   res.json(resJson);
+  */
+  const proposals_option = require("./mock_data/proposals_option.json");
+  // MOCK_DATA
+  res.json(proposals_option)
 })
 
 // should be ok
-app.get('/voters/:id', (req,res) => {
-  const filter = req.query.filter;
+app.get('/voters/:id', async (req,res) => {
+  /*const filter = req.query.filter;
   //TODO if !filter => all cases for, abstain, against
   const limit = req.query.limit;
   const proposalIdParam = req.params.id;
   var arg;
 
-  var sumVotes;
+  var sumVotes; 
   var total;
   var resultsArray = [];
   var proposal;
 
 
-  const voteCastEvents = governorContract.getPastEvents('VoteCast', {
+  const voteCastEvents = await governorContract.getPastEvents('VoteCast', {
     fromBlock: 0,
     toBlock: 'latest'
   });
 
-  voteCastEvents.forEach((ballot)=> {
+  for (ballot of voteCastEvents) {
     const { voter, proposalId, support, votes, reason } = ballot.returnValues;
     if(proposalId == proposalIdParam && support == filter) {
-      const blockTimestamp = web3.eth.getBlock(ballot.blockNumber).timestamp;
+      const blockTimestamp = await web3.eth.getBlock(ballot.blockNumber).timestamp;
       var item = {
         "address" : voter,
         "hasVoted" : true,
@@ -1437,9 +1443,9 @@ app.get('/voters/:id', (req,res) => {
       }
       resultsArray.push(item);
     } 
-  })
+  }
 
-  governorContract.methods.proposals(proposalIdParam).call()
+  await governorContract.methods.proposals(proposalIdParam).call()
     .then((result) => {
       proposal = result;
     }).catch((error) => {
@@ -1473,16 +1479,20 @@ app.get('/voters/:id', (req,res) => {
     }
   }
   res.json(resJson);
+  */
+  const voters = require('./mock_data/voters_data_0.json');
+  res.json(voters);
 });
  
 // should be ok
-app.get('/voters/accounts/:id', (req,res) => {
-  var transactions = [];
+app.get('/voters/accounts/:id', async (req,res) => {
+  
+  /*var transactions = [];
   const account = req.params.id;
   var balance;
   var votes;
   var delegate; 
-  miaLensContract.methods.getMIABalanceMetadata(miaAddress, account).call()
+  await miaLensContract.methods.getMIABalanceMetadata(miaAddress, account).call()
     .then((result)=> {
       balance = result.balance;
       votes = result.votes;
@@ -1492,15 +1502,15 @@ app.get('/voters/accounts/:id', (req,res) => {
       return res.sendStatus(400);
   });
 
-  const txsEventsFrom = miaContract.getPastEvents('Transfer', {
+  const txsEventsFrom = await miaContract.getPastEvents('Transfer', {
     filter: {from: account},
     fromBlock: 0,
     toBlock: 'latest'
   });
-  txsEventsFrom.forEach((tx)=> {
+  for (tx of txsEventsFrom) {
     const { from, to, amount } = tx.returnValues;
     const blockNumber = tx.blockNumber;
-    const blockTimestamp = web3.eth.getBlock(blockNumber).timestamp;
+    const blockTimestamp = await web3.eth.getBlock(blockNumber).timestamp;
     var item = {
       "from": from,
       "to": to,
@@ -1514,17 +1524,17 @@ app.get('/voters/accounts/:id', (req,res) => {
       "type":"transfer"
     }
     transactions.push(item);
-  })
+  }
 
   const txsEventsTo = miaContract.getPastEvents('Transfer', {
     filter: {to: account},
     fromBlock: 0,
     toBlock: 'latest'
   });
-  txsEventsTo.forEach((tx)=> {
+  for (tx of txsEventsTo) {
     const { from, to, amount } = tx.returnValues;
     const blockNumber = tx.blockNumber;
-    const blockTimestamp = web3.eth.getBlock(blockNumber);
+    const blockTimestamp = await web3.eth.getBlock(blockNumber);
     var item = {
       "from": from,
       "to": to,
@@ -1538,7 +1548,7 @@ app.get('/voters/accounts/:id', (req,res) => {
       "type":"transfer"
     }
     transactions.push(item);
-  })
+  }
   const resJson = {
     "data": {
       "delegateCount": 1,
@@ -1549,11 +1559,15 @@ app.get('/voters/accounts/:id', (req,res) => {
     }
   }
   res.json(resJson);
+  */
+  const voter_account = require('./mock_data/voter_account.json');
+  res.json(voter_account);
 })
 
 // should be ok
-app.get('/voters/accounts', (req,res) => {
-  const offset = req.query.offset;
+app.get('/voters/accounts', async (req,res) => {
+  
+  /*const offset = req.query.offset;
   const limit = req.query.limit;
   var total;
   var finalArray = [];
@@ -1563,7 +1577,7 @@ app.get('/voters/accounts', (req,res) => {
     toBlock: 'latest'
   });
 
-  voteCastEvents.forEach((ballot)=> {
+  for (ballot of voteCastEvents) {
     const { voter, proposalId, support, votes, reason } = ballot.returnValues;
     const voteCastEventsInternal = governorContract.getPastEvents('VoteCast', {
       filter : {voter: voter},
@@ -1581,7 +1595,7 @@ app.get('/voters/accounts', (req,res) => {
       "votes2":"000000000000000000000000000".concat(String(votes))
     }
     finalArray.push(item);
-  }) 
+  }
   const resJson = {
     "data": {
       "offset": offset,
@@ -1591,11 +1605,14 @@ app.get('/voters/accounts', (req,res) => {
     }
   }
   res.json(resJson);
+  */
+  const voters_accounts = require('./mock_data/voters_accounts.json');
+  res.json(voters_accounts);
 })
 
 // should be ok
-app.get('/voters/history/:id', (req,res) => {
-  const offset = req.query.offset;
+app.get('/voters/history/:id', async (req,res) => {
+  /*const offset = req.query.offset;
   const limit = req.query.limit;
 
   const account = req.params.id;
@@ -1608,12 +1625,13 @@ app.get('/voters/history/:id', (req,res) => {
   });
 
   voteCastEvents.forEach((ballot)=> {
+  for(ballot of voteCastEvents){
       const { voter, proposalId, support, votes, reason } = ballot.returnValues;
       const blockTimestamp = web3.eth.getBlock(ballot.blockNumber).timestamp;
 
       // GET PROPOSAL OBJECT FROM CONTRACT 
       var proposal = [];
-      miaLensContract.methods.getGovProposals(governorAddress,[proposalId]).call()
+      await miaLensContract.methods.getGovProposals(governorAddress,[proposalId]).call()
         .then((result)=> {
           proposal = result
         }).catch((error) => {
@@ -1624,7 +1642,7 @@ app.get('/voters/history/:id', (req,res) => {
 
       // GET STATE OF THE PROPOSAL 
       var state;
-      governorContract.methods.state(proposalId).call()
+      await governorContract.methods.state(proposalId).call()
         .then((result) => {
           state = result;
         }).catch((error) => {
@@ -1641,7 +1659,7 @@ app.get('/voters/history/:id', (req,res) => {
       });
       var proposalEvent = proposalsCreatedEvents[0];
       const { id, proposer, targets, values, signatures, calldatas, startBlock, endBlock, description   } = proposalEvent.returnValues;
-      const blockTimestamp1 = web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
+      const blockTimestamp1 = await web3.eth.getBlock(proposalEvent.blockNumber).timestamp;
 
         // CHECK IF THE STATE IS WHETHER CANCELED, EXECUTED OR DEFEATED, OR QUEUED
       var cancelBlock = null;
@@ -1664,7 +1682,7 @@ app.get('/voters/history/:id', (req,res) => {
         var canceledEvent = proposalCanceledEvents[0];
         cancelBlock = canceledEvent.blockNumber;
         cancelTxHash = canceledEvent.transactionHash;
-        cancelTimestamp = web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
+        cancelTimestamp = await web3.eth.getBlock(canceledEvent.blockNumber).timestamp;
 
       }
       if(state === "Executed") {
@@ -1677,7 +1695,7 @@ app.get('/voters/history/:id', (req,res) => {
         var queuedEvent = proposalQueuedEvents[0];
         queuedBlock = queuedEvent.blockNumber;
         queuedTxHash = queuedEvent.transactionHash;
-        queuedTimestamp = web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
+        queuedTimestamp = await web3.eth.getBlock(queuedEvent.blockNumber).timestamp;
 
         const proposalExecutedEvents = governorContract.getPastEvents('ProposalExecuted', {
           filter : {id : proposalId},
@@ -1687,13 +1705,13 @@ app.get('/voters/history/:id', (req,res) => {
         var executedEvent = proposalExecutedEvents[0];
         executedBlock = executedEvent.blockNumber;
         executedTxHash = executedEvent.transactionHash;
-        executedTimestamp = web3.eth.getBlock(executedEvent.blockNumber).timestamp;
+        executedTimestamp = await web3.eth.getBlock(executedEvent.blockNumber).timestamp;
       }
 
-      var startTimestamp = web3.eth.getBlock(firstProposal.startBlock).timestamp;
-      var endTimestamp = web3.eth.getBlock(firstProposal.endBlock).timestamp;
-      var startTx = web3.eth.getBlock(firstProposal.startBlock).hash;
-      var endTx = web3.eth.getBlock(firstProposal.endBlock).hash;
+      var startTimestamp = await web3.eth.getBlock(firstProposal.startBlock).timestamp;
+      var endTimestamp = await web3.eth.getBlock(firstProposal.endBlock).timestamp;
+      var startTx = await web3.eth.getBlock(firstProposal.startBlock).hash;
+      var endTx = await web3.eth.getBlock(firstProposal.endBlock).hash;
 
 
 
@@ -1768,6 +1786,9 @@ app.get('/voters/history/:id', (req,res) => {
   }
 
   res.json(resJson);
+  */
+  const voters_history = require('./mock_data/voters.json');
+  res.json(voters_history);
 
 })
 
